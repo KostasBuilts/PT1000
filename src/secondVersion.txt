@@ -1,0 +1,236 @@
+#include <Arduino.h>
+
+#define A   2
+#define B   4
+#define C   7
+#define D   6
+#define E   5
+#define F   3
+#define G   8
+#define Dig1  9
+#define Dig2  10
+#define Dig3  11
+#define Dig4  12
+
+float t;
+
+char display_buffer[30] =    {0, 0, 1, 0, 0, 1, 0,    1, 0, 1, 1, 1, 0, 1,    1, 0, 1, 0, 1, 1, 1,    0, 1, 1, 0, 0, 1, 1};
+char anodes_buffer[30] =     {9, 9, 9, 9, 9, 9, 9,    10,10,10,10,10,10,10,   11,11,11,11,11,11,11,    12,12,12,12,12,12,12};
+char current_io_buffer[30] = {2, 3, 4, 5, 6, 7, 8,    2, 3, 4, 5, 6, 7, 8,    2, 3, 4, 5, 6, 7, 8,    2, 3, 4, 5, 6, 7, 8};
+char current_io_buffer[30] = {8, 2, 3, 4, 5, 6, 7,    8, 2, 3, 4, 5, 6, 7,    8, 2, 3, 4, 5, 6, 7,    8, 2, 3, 4, 5, 6, 7};
+
+
+uint8_t currnet_segment = 2;
+uint8_t previous_segment = 2;
+uint8_t current_digit = 12;
+uint8_t io_crrection=0;
+
+unsigned long myTime;
+
+void test_cycle ()
+{
+  for(int i=2; i<=8; ++i)
+  {
+    digitalWrite(i, LOW);
+    delay(400);
+  }
+  delay(400);
+  for(int i=2; i<=8; ++i)
+  {
+    digitalWrite(i, HIGH);
+    delay(400);
+  }
+}
+
+void spiral_test (int speed)
+{
+  char segments [8] = {F, A, B, C, D, E, G};
+  delay(speed);
+  for(int i=0; i<7; ++i)
+  {
+      digitalWrite(segments[i], LOW);
+      delay(speed);
+  }
+  for(int i=0; i<7; ++i)
+  {
+      digitalWrite(segments[i], HIGH);
+  }
+}
+
+void prepare_digit (uint8_t num, char *out)
+{
+    switch(num)
+    {
+      case 0:
+        sprintf(out, "%d%d%d%d%d%d%d", A, B, C, D, E, F, 0);
+        break;
+      
+      case 1:
+        sprintf(out, "%d%d%d", B, C, 0);
+        break;
+      
+      case 2:
+        sprintf(out, "%d%d%d%d%d%d", A, B, G, E, D, 0);
+        break;
+      
+      case 3:
+        sprintf(out, "%d%d%d%d%d%d", A, B, G, C, D, 0);
+        break;
+      
+      case 4:
+        sprintf(out, "%d%d%d%d%d", F, G, B, C, 0);
+        break;
+      
+      case 5:
+        sprintf(out, "%d%d%d%d%d%d", A, F, G, C, D, 0);
+        break;
+
+      case 6:
+        sprintf(out, "%d%d%d%d%d%d%d", A, F, G, D, C, E, 0);
+        break;
+      
+      case 7:
+        sprintf(out, "%d%d%d%d", A, B, C, 0);
+        break;
+      
+      case 8:
+        sprintf(out, "%d%d%d%d%d%d%d%d", A, B, C, D, E, F, G, 0);
+        break;
+      
+      case 9:
+        sprintf(out, "%d%d%d%d%d%d%d", A, B, C, D, F, G, 0);
+        break;
+    }
+}
+
+void clear_buffer(char *out)
+{
+  *out++ = 0;
+  *out++ = 0;
+  *out++ = 0;
+  *out++ = 0;
+  *out++ = 0;
+  *out++ = 0;
+  *out++ = 0;
+  *out = 0;
+}
+
+
+void display_digit(uint8_t num, uint8_t position, char *out)
+{
+  switch(position)
+  {
+    case 1:
+      digitalWrite(Dig1, HIGH);
+      digitalWrite(Dig2, LOW);
+      digitalWrite(Dig3, LOW);
+      digitalWrite(Dig4, LOW);
+      break;
+    
+    case 2:
+      digitalWrite(Dig2, HIGH);
+      digitalWrite(Dig1, LOW);
+      digitalWrite(Dig3, LOW);
+      digitalWrite(Dig4, LOW);
+      break;
+    
+    case 3:
+      digitalWrite(Dig3, HIGH);
+      digitalWrite(Dig1, LOW);
+      digitalWrite(Dig2, LOW);
+      digitalWrite(Dig4, LOW);
+      break;
+
+    case 4:
+      digitalWrite(Dig4, HIGH);
+      digitalWrite(Dig1, LOW);
+      digitalWrite(Dig2, LOW);
+      digitalWrite(Dig3, LOW);
+      break;
+  }
+  clear_buffer(out);
+  prepare_digit(num, out);
+  while(*out != 0)
+  {
+    for(int i=8; i>=2; --i) digitalWrite(i, HIGH);
+    digitalWrite(*out-0x30, LOW);
+    delay(0.1);
+    digitalWrite(*out-0x30, HIGH);
+    ++out;
+  }
+  
+}
+
+void setup() {
+  Serial.begin(9600);
+  for(int i=2; i<=12; ++i)
+  {
+    pinMode(i, OUTPUT);
+  }
+}
+
+void loop() 
+{
+  
+  if(myTime+1<millis())
+  {
+    digitalWrite(13, HIGH);
+    myTime = millis();
+    digitalWrite(9, LOW);
+    digitalWrite(10, LOW);
+    digitalWrite(11, LOW);
+    digitalWrite(12, LOW);
+    switch(currnet_segment)
+    {
+      case 2:
+        current_digit = 9;
+        io_crrection=0;
+        break;
+      case 9:
+        current_digit = 10;
+        io_crrection=7;
+        break;
+      case 16:
+        current_digit = 11;
+        io_crrection=14;
+        break;
+      case 23:
+        current_digit =12;
+        io_crrection=21;
+        break;
+    }
+    digitalWrite(current_digit, HIGH);
+    digitalWrite(previous_segment-io_crrection, HIGH);
+    if(display_buffer[currnet_segment] == 1) digitalWrite(currnet_segment-io_crrection, LOW); 
+    else digitalWrite(currnet_segment-io_crrection, HIGH);
+    previous_segment = currnet_segment;
+    ++currnet_segment;
+    if(currnet_segment>29) currnet_segment = 2;
+    digitalWrite(13, LOW);
+  }
+  /*float Vin = analogRead(A0)*0.00488;
+  Serial.println(Vin);
+  Serial.println(((308*Vin)/5)-49);
+  delay(400);*/
+
+  /*digitalWrite(Dig1, HIGH);
+  spiral_test(200);
+  digitalWrite(Dig2, HIGH);
+  spiral_test(200);
+  digitalWrite(Dig3, HIGH);
+  spiral_test(200);
+  digitalWrite(Dig4, HIGH);
+  spiral_test(200);*/
+
+  /*display_digit(1, 1, display_buffer);
+  display_digit(1, 2, display_buffer);
+  display_digit(1, 3, display_buffer);
+  display_digit(1, 4, display_buffer);*/
+  
+  //delay(1);
+}
+
+
+//40us
+RAM:   [=         ]  10.9% (used 223 bytes from 2048 bytes)
+Flash: [=         ]   6.8% (used 2192 bytes from 32256 bytes)
